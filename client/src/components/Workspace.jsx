@@ -109,31 +109,93 @@ export default function Workspace({ problem }) {
   };
 
   // --- ✨ SCORE UPDATING LOGIC ---
-  const incrementUserScore = async () => {
+  // const incrementUserScore = async () => {
+  //   try {
+  //     const { data: { user } } = await supabase.auth.getUser();
+  //     if (!user) return;
+
+  //     const { data: profileData, error: fetchError } = await supabase
+  //       .from('profiles')
+  //       .select('rank_score')
+  //       .eq('id', user.id)
+  //       .single();
+
+  //     if (fetchError) return;
+
+  //     const newScore = (profileData.rank_score || 0) + 1;
+  //     await supabase
+  //       .from('profiles')
+  //       .update({ rank_score: newScore }) 
+  //       .eq('id', user.id);
+  //   } catch (err) {
+  //     console.error("Auth error:", err);
+  //   }
+  // };
+ const incrementUserScore = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data: profileData, error: fetchError } = await supabase
-        .from('profiles')
-        .select('rank_score')
-        .eq('id', user.id)
-        .single();
+      // 1. Check if this is the first time the user is solving this specific problem
+      // We check for "Accepted" status (Capital 'A' to match recordSubmission)
+      const { count, error: countError } = await supabase
+        .from('submissions')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('problem_id', problem.id)
+        .eq('status', 'Accepted');
 
-      if (fetchError) return;
+      if (countError) throw countError;
 
-      const newScore = (profileData.rank_score || 0) + 1;
-      await supabase
-        .from('profiles')
-        .update({ rank_score: newScore }) 
-        .eq('id', user.id);
+      // 2. Only increment if there is exactly 1 "Accepted" record (the one we just created)
+      // If count is greater than 1, they have solved it before.
+      if (count === 1) {
+        const { data: profileData, error: fetchError } = await supabase
+          .from('profiles')
+          .select('rank_score')
+          .eq('id', user.id)
+          .single();
+
+        if (fetchError) return;
+
+        const newScore = (profileData.rank_score || 0) + 1;
+        
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ rank_score: newScore }) 
+          .eq('id', user.id);
+          
+        if (updateError) console.error("Update failed:", updateError.message);
+      }
     } catch (err) {
-      console.error("Auth error:", err);
+      console.error("Score increment logic error:", err);
     }
   };
 
   // --- ✨ NEW: SUBMISSION RECORDING LOGIC ---
-  const recordSubmission = async (status, executionData) => {
+  // const recordSubmission = async (status, executionData) => {
+  //   try {
+  //     const { data: { user } } = await supabase.auth.getUser();
+  //     if (!user) return;
+
+  //     const { error } = await supabase
+  //       .from('submissions')
+  //       .insert([{
+  //         user_id: user.id,
+  //         problem_id: problem.id,
+  //         status: status, // "Accepted" or "Wrong Answer" or "Error"
+  //         code: codeCache[language],
+  //         language: language,
+  //         execution_time: executionData?.cpuTime || 0,
+  //         memory_usage: executionData?.memory || 0
+  //       }]);
+
+  //     if (error) console.error("Failed to record submission:", error.message);
+  //   } catch (err) {
+  //     console.error("Submission error:", err);
+  //   }
+  // };
+ const recordSubmission = async (status, executionData) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -143,7 +205,7 @@ export default function Workspace({ problem }) {
         .insert([{
           user_id: user.id,
           problem_id: problem.id,
-          status: status, // "Accepted" or "Wrong Answer" or "Error"
+          status: status, // This will be "Accepted", "Wrong Answer", etc.
           code: codeCache[language],
           language: language,
           execution_time: executionData?.cpuTime || 0,
