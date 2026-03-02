@@ -18,7 +18,6 @@ export default function Workspace({ problem }) {
   // Execution & AI State
   const [aiHint, setAiHint] = useState('');
   const [userPrompt, setUserPrompt] = useState(''); 
-  // ✨ NEW: Manages the interactive flow ('none' | 'asking' | 'typing' | 'loading' | 'result')
   const [aiFlowStatus, setAiFlowStatus] = useState('none'); 
   const [executionResult, setExecutionResult] = useState(null);
   const [runStatus, setRunStatus] = useState(null);
@@ -77,7 +76,7 @@ export default function Workspace({ problem }) {
     const startY = e.clientY;
     const startHeight = outputHeight;
     const onMove = (ev) => {
-      const delta = startY - ev.clientY; // Dragging up increases height
+      const delta = startY - ev.clientY; 
       const newHeight = Math.max(42, Math.min(600, startHeight + delta));
       setOutputHeight(newHeight);
       if (newHeight > 50) setIsOutputCollapsed(false);
@@ -110,12 +109,11 @@ export default function Workspace({ problem }) {
     }
   };
 
-  // ✨ UPDATED AI ACTION: Handles the custom prompt logic based on the flow
+  // ✨ STANDARD AI ACTION: For guidance and hints
   const handleAskAI = async (useCustomPrompt = false) => {
     setAiFlowStatus('loading');
     setAiHint('');
     
-    // If the user clicked "No" (don't use custom prompt), clear the prompt field before sending
     const promptToSend = useCustomPrompt ? userPrompt : '';
 
     try {
@@ -134,7 +132,7 @@ export default function Workspace({ problem }) {
       const data = await response.json();
       if (response.ok) {
         setAiHint(data.suggestion);
-        setUserPrompt(''); // Clear input box after getting response
+        setUserPrompt(''); 
         setAiFlowStatus('result');
       } else {
         setAiHint("Oops! The AI Mentor is currently offline.");
@@ -146,7 +144,41 @@ export default function Workspace({ problem }) {
     }
   };
 
-  // Triggered when the user clicks the "Ask AI" button in the header
+  // ✨ NEW: CODE QUALITY ANALYSIS ACTION
+  const handleAnalyzeCode = async () => {
+    setAiFlowStatus('loading');
+    setAiHint('');
+    
+    // The secret prompt we send to Gemini to force a code review
+    const analysisPrompt = "Please act as a senior developer and review my current code. Do not solve the problem for me. Instead, provide a structured 'Code Quality Report' containing: 1. The estimated Time Complexity (Big O). 2. The estimated Space Complexity (Big O). 3. Two specific suggestions to make my code cleaner, more readable, or more efficient.";
+
+    try {
+      const response = await fetch(`${API_BASE}/api/ai-help`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          problemTitle: problem.title, 
+          problemDescription: formattedDescription,
+          examples: parsedExamples,
+          userCode: codeCache[language], 
+          language: language,
+          userPrompt: analysisPrompt
+        })
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setAiHint(data.suggestion);
+        setAiFlowStatus('result');
+      } else {
+        setAiHint("Failed to analyze code quality.");
+        setAiFlowStatus('result');
+      }
+    } catch { 
+      setAiHint("Connection failed during analysis."); 
+      setAiFlowStatus('result');
+    }
+  };
+
   const initiateAIFlow = () => {
     if (aiFlowStatus === 'none' || aiFlowStatus === 'result') {
       setAiFlowStatus('asking');
@@ -163,11 +195,17 @@ export default function Workspace({ problem }) {
           <h2 className="text-lg font-bold">{problem.title}</h2>
           <span className="text-[10px] text-green-400 uppercase">{problem.difficulty}</span>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <select value={language} onChange={(e) => setLanguage(e.target.value)} className="bg-[#0d1117] border border-gray-700 rounded px-2 py-1 text-xs outline-none focus:border-blue-500">
             {languages.map(lang => <option key={lang} value={lang}>{lang}</option>)}
           </select>
-          <button onClick={initiateAIFlow} className="bg-indigo-600 hover:bg-indigo-500 px-4 py-1.5 rounded-md text-sm font-bold transition">✨ Ask AI</button>
+          {/* ✨ NEW ANALYZE BUTTON */}
+          <button onClick={handleAnalyzeCode} className="bg-emerald-700 hover:bg-emerald-600 px-4 py-1.5 rounded-md text-sm font-bold transition flex items-center gap-1">
+            <span>📊</span> Analyze Code
+          </button>
+          <button onClick={initiateAIFlow} className="bg-indigo-600 hover:bg-indigo-500 px-4 py-1.5 rounded-md text-sm font-bold transition flex items-center gap-1">
+            <span>✨</span> Ask AI
+          </button>
           <button onClick={handleSubmit} className="bg-blue-600 hover:bg-blue-500 px-6 py-1.5 rounded-md text-sm font-bold transition">Run</button>
         </div>
       </header>
@@ -180,11 +218,11 @@ export default function Workspace({ problem }) {
           {aiFlowStatus !== 'none' && (
             <div className="p-5 bg-indigo-900/10 border border-indigo-500/30 rounded-xl mb-8 shadow-inner transition-all duration-300">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-indigo-400 font-bold text-sm flex items-center gap-2">✨ Interactive AI Mentor</h3>
+                <h3 className="text-indigo-400 font-bold text-sm flex items-center gap-2">✨ Intelligent Assistant</h3>
                 <button onClick={() => setAiFlowStatus('none')} className="text-indigo-400 hover:text-white font-bold text-lg leading-none">✕</button>
               </div>
 
-              {/* STAGE 1: Asking for prompt preference */}
+              {/* STAGE 1: Asking */}
               {aiFlowStatus === 'asking' && (
                 <div className="space-y-4 animate-in fade-in duration-300">
                   <p className="text-sm text-gray-300">Do you want to add a specific prompt or question about your code?</p>
@@ -195,13 +233,13 @@ export default function Workspace({ problem }) {
                 </div>
               )}
 
-              {/* STAGE 2: User is typing their prompt */}
+              {/* STAGE 2: Typing */}
               {aiFlowStatus === 'typing' && (
                 <div className="space-y-3 animate-in fade-in duration-300">
                   <textarea 
                     value={userPrompt}
                     onChange={(e) => setUserPrompt(e.target.value)}
-                    placeholder="Type your question here (e.g. 'Why is my array index out of bounds?')..."
+                    placeholder="Type your question here..."
                     className="w-full bg-[#0d1117] border border-indigo-500/20 rounded-lg p-3 text-sm text-gray-200 focus:outline-none focus:border-indigo-500/60 min-h-[80px] custom-scrollbar resize-y"
                     autoFocus
                   />
@@ -212,15 +250,15 @@ export default function Workspace({ problem }) {
                 </div>
               )}
 
-              {/* STAGE 3: AI is Loading */}
+              {/* STAGE 3: Loading */}
               {aiFlowStatus === 'loading' && (
                 <div className="flex flex-col items-center justify-center py-6 space-y-4 animate-in fade-in duration-300">
                   <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-                  <p className="text-sm text-indigo-400 font-semibold animate-pulse">AI is loading your guidance...</p>
+                  <p className="text-sm text-indigo-400 font-semibold animate-pulse">Analyzing your code...</p>
                 </div>
               )}
 
-              {/* STAGE 4: Displaying the Result beautifully */}
+              {/* STAGE 4: Result */}
               {aiFlowStatus === 'result' && aiHint && (
                 <div className="animate-in fade-in duration-500">
                   <div className="p-4 bg-[#0d1117] border border-indigo-500/20 rounded-lg text-sm text-gray-200 shadow-inner">
@@ -228,9 +266,6 @@ export default function Workspace({ problem }) {
                       {aiHint}
                     </ReactMarkdown>
                   </div>
-                  <button onClick={() => setAiFlowStatus('asking')} className="mt-4 text-xs text-indigo-400 hover:text-indigo-300 font-medium underline flex items-center gap-1">
-                    <span>↻</span> Ask another question
-                  </button>
                 </div>
               )}
             </div>
@@ -269,10 +304,8 @@ export default function Workspace({ problem }) {
             className="flex flex-col bg-[#090c10] border-t border-gray-800 relative transition-all duration-200 ease-out" 
             style={{ height: isOutputCollapsed ? '42px' : `${outputHeight}px` }}
           >
-            {/* Horizontal Resize Handle */}
             <div className="absolute top-0 left-0 w-full h-1 cursor-ns-resize hover:bg-blue-500 z-10" onMouseDown={handleOutputResizeMouseDown} />
 
-            {/* Terminal Header */}
             <div className="flex justify-between items-center px-6 h-[41px] bg-[#161b22] shrink-0">
               <div className="flex gap-4">
                 {["output", "testcase"].map(tab => (
@@ -287,7 +320,6 @@ export default function Workspace({ problem }) {
               </button>
             </div>
 
-            {/* Terminal Content */}
             <div className="flex-1 overflow-auto p-6 font-mono text-sm custom-scrollbar">
               {activeTerminalTab === "output" ? (
                 executionResult?.loading ? <div className="text-yellow-500 animate-pulse flex items-center gap-2"><div className="w-3 h-3 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin"></div> Running code on server...</div> :
