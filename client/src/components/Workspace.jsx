@@ -89,7 +89,7 @@ export default function Workspace({ problem }) {
     window.addEventListener("mouseup", stop);
   };
 
-  --- ACTIONS ---
+  // --- ACTIONS ---
   const handleSubmit = async () => {
     setRunStatus("running");
     setExecutionResult({ loading: true });
@@ -108,48 +108,6 @@ export default function Workspace({ problem }) {
       setExecutionResult({ success: false, error: "Connection failed." });
     }
   };
-  // const handleSubmit = async () => {
-  //   setRunStatus("running");
-  //   setExecutionResult({ loading: true });
-  //   setIsOutputCollapsed(false);
-
-  //   try {
-  //     // 1. Fetch all test cases for this problem from Supabase
-  //     // This costs 0 credits.
-  //     const { data: testCases, error: fetchError } = await supabase
-  //       .from('test_cases')
-  //       .select('*')
-  //       .eq('problem_id', problem.id);
-
-  //     if (fetchError) throw new Error(fetchError.message);
-
-  //     // 2. Call your NEW Edge Function (The one you just deployed)
-  //     // This costs only 1 credit for ALL test cases.
-  //     const { data, error: invokeError } = await supabase.functions.invoke('run-tests', {
-  //       body: {
-  //         userCode: codeCache[language],
-  //         testCases: testCases,
-  //         language: language
-  //       }
-  //     });
-
-  //     if (invokeError) throw new Error(invokeError.message);
-
-  //     // 3. Update the UI with the batch results
-  //     setRunStatus("success");
-  //     setExecutionResult({
-  //       success: true,
-  //       results: data.results // This is the array from your index.ts loop
-  //     });
-
-  //   } catch (err) {
-  //     setRunStatus("error");
-  //     setExecutionResult({
-  //       success: false,
-  //       error: err.message || "Connection failed."
-  //     });
-  //   }
-  // };
 
   // ✨ STANDARD AI ACTION: For guidance and hints
   const handleAskAI = async (useCustomPrompt = false) => {
@@ -369,7 +327,20 @@ export default function Workspace({ problem }) {
                 executionResult?.error ? <pre className="text-red-400 whitespace-pre-wrap">{executionResult.error}</pre> :
                 <span className="text-gray-600 italic">Run your code to see output here.</span>
               ) : (
-                <span className="text-gray-600">Testcase configuration coming soon.</span>
+                /* ✨ NEW: Renders the Test Cases inside the terminal tab! */
+                <div className="space-y-4">
+                  <h4 className="text-gray-400 text-xs font-bold mb-2">AVAILABLE TEST CASES</h4>
+                  {parsedExamples.length > 0 ? (
+                    parsedExamples.map((ex, i) => (
+                      <div key={i} className="bg-[#1e1e1e] p-4 rounded-md border border-gray-700 font-mono text-xs shadow-inner">
+                        <div className="text-blue-400 mb-2 uppercase font-bold tracking-wider">Test Case {ex.example_num || i+1}</div>
+                        <div className="text-gray-300 whitespace-pre-wrap">{ex.example_text}</div>
+                      </div>
+                    ))
+                  ) : (
+                    <span className="text-gray-600 italic">No test cases found.</span>
+                  )}
+                </div>
               )}
             </div>
           </div>
