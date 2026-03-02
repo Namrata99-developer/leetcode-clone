@@ -3,7 +3,7 @@ import React from 'react';
 const Welcome = () => {
     return (
         <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center p-6 text-center">
-            <h1 className="text-6xl font-extrabold text-blue-500 mb-4">CU LeetCode</h1>
+            <h1 className="text-6xl font-extrabold text-blue-500 mb-4">Algo-Mentor</h1>
             <p className="text-xl text-gray-400 mb-10 max-w-lg">
                 The platform for students to master coding, share knowledge, and level up their careers.Let's Code it...
             </p>
