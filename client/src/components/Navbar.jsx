@@ -46,8 +46,8 @@ const Navbar = () => {
         <nav className="bg-gray-900 border-b border-gray-800 px-6 py-4 flex justify-between items-center sticky top-0 z-50">
             {/* Logo */}
             <Link to="/" className="text-2xl font-bold text-blue-500 hover:text-blue-400 transition flex items-center gap-2">
-                <span className="bg-blue-600 text-white px-2 py-0.5 rounded text-lg">CU</span>
-                LeetCode
+                <span className="bg-blue-600 text-white px-2 py-0.5 rounded text-lg">AM</span>
+                Algo-Mentor
             </Link>
 
             <div className="flex items-center gap-6">
