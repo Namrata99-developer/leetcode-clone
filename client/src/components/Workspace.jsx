@@ -2,7 +2,7 @@ import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { Editor } from '@monaco-editor/react';
 import ReactMarkdown from 'react-markdown';
 import { API_BASE } from '../config/api';
-import { supabase } from '../supabaseClient'; // Make sure this path is correct!
+import { supabase } from '../supabaseClient'; 
 
 const DEFAULT_LANG = 'javascript';
 
@@ -11,7 +11,6 @@ export default function Workspace({ problem }) {
   const [codeCache, setCodeCache] = useState({});
   const [descriptionWidth, setDescriptionWidth] = useState(50);
   
-  // ✨ NEW: State to hold real test cases from Supabase
   const [dbTestCases, setDbTestCases] = useState([]);
 
   // Terminal State
@@ -21,8 +20,8 @@ export default function Workspace({ problem }) {
 
   // Execution & AI State
   const [aiHint, setAiHint] = useState('');
-  const [userPrompt, setUserPrompt] = useState(''); 
-  const [aiFlowStatus, setAiFlowStatus] = useState('none'); 
+  const [userPrompt, setUserPrompt] = useState('');  
+  const [aiFlowStatus, setAiFlowStatus] = useState('none');  
   const [executionResult, setExecutionResult] = useState(null);
   const [runStatus, setRunStatus] = useState(null);
 
@@ -44,37 +43,22 @@ export default function Workspace({ problem }) {
 
   const languages = useMemo(() => problem?.code_snippets ? Object.keys(problem.code_snippets) : [], [problem]);
 
-  // ✨ DEBUG VERSION: Fetch Test Cases when problem loads
   useEffect(() => {
     const fetchTestCases = async () => {
-      console.log("🔍 1. Current Problem Data:", problem);
-      
-      if (!problem?.id) {
-        console.error("❌ 2. ERROR: `problem.id` is missing!");
-        return;
-      }
-
+      if (!problem?.id) return;
       try {
-        console.log("🔄 3. Fetching test cases for problem_id:", problem.id);
         const { data, error } = await supabase
           .from('test_cases')
           .select('*')
           .eq('problem_id', problem.id);
         
-        if (error) {
-          console.error("❌ 4. Supabase DB Error:", error.message);
-        } else {
-          console.log("✅ 5. Success! Fetched test cases:", data);
-          setDbTestCases(data);
-        }
+        if (!error) setDbTestCases(data);
       } catch (err) {
-        console.error("❌ 6. Network Error:", err);
+        console.error("Network Error:", err);
       }
     };
 
-    if (problem) {
-      fetchTestCases();
-    }
+    if (problem) fetchTestCases();
   }, [problem]);
 
   useEffect(() => {
@@ -85,8 +69,6 @@ export default function Workspace({ problem }) {
     languages.forEach(lang => { newCache[lang] = problem.code_snippets[lang]; });
     setCodeCache(newCache);
     setExecutionResult(null);
-    
-    // Reset AI states when problem changes
     setAiHint(''); 
     setUserPrompt(''); 
     setAiFlowStatus('none');
@@ -129,38 +111,48 @@ export default function Workspace({ problem }) {
   // --- ✨ SCORE UPDATING LOGIC ---
   const incrementUserScore = async () => {
     try {
-      // 1. Get the current logged-in user
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // 2. Fetch their current score first
       const { data: profileData, error: fetchError } = await supabase
         .from('profiles')
         .select('rank_score')
         .eq('id', user.id)
         .single();
 
-      if (fetchError) {
-        console.error("Failed to fetch current score:", fetchError);
-        return;
-      }
+      if (fetchError) return;
 
-      // 3. Add 1 to their current score
       const newScore = (profileData.rank_score || 0) + 1;
-
-      // 4. Save the new score to the database
-      const { error: updateError } = await supabase
+      await supabase
         .from('profiles')
         .update({ rank_score: newScore }) 
         .eq('id', user.id);
-
-      if (updateError) {
-        console.error("Score update failed:", updateError);
-      } else {
-        console.log("🏆 Score successfully updated to:", newScore);
-      }
     } catch (err) {
       console.error("Auth error:", err);
+    }
+  };
+
+  // --- ✨ NEW: SUBMISSION RECORDING LOGIC ---
+  const recordSubmission = async (status, executionData) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { error } = await supabase
+        .from('submissions')
+        .insert([{
+          user_id: user.id,
+          problem_id: problem.id,
+          status: status, // "Accepted" or "Wrong Answer" or "Error"
+          code: codeCache[language],
+          language: language,
+          execution_time: executionData?.cpuTime || 0,
+          memory_usage: executionData?.memory || 0
+        }]);
+
+      if (error) console.error("Failed to record submission:", error.message);
+    } catch (err) {
+      console.error("Submission error:", err);
     }
   };
 
@@ -183,28 +175,29 @@ export default function Workspace({ problem }) {
         setRunStatus("success");
         setExecutionResult({ success: true, ...data });
 
-        // --- ✨ NEW: EVALUATE TEST CASES AND UPDATE SCORE ---
         const cleanOut = (data.output || "").replace(/\s/g, '');
-        
-        // Check if EVERY test case in the DB is found in the terminal output
+        let allPassed = false;
+
         if (dbTestCases.length > 0) {
-          const allPassed = dbTestCases.every(tc => {
+          allPassed = dbTestCases.every(tc => {
             const expectedStr = typeof tc.expected_output === 'object' 
               ? JSON.stringify(tc.expected_output) 
               : String(tc.expected_output);
             return cleanOut.includes(expectedStr.replace(/\s/g, ''));
           });
 
-          // If they passed all test cases, give them a point!
           if (allPassed) {
             await incrementUserScore();
           }
         }
-        // ------------------------------------
+
+        // ✨ RECORD TO SUBMISSIONS TABLE
+        await recordSubmission(allPassed ? "Accepted" : "Wrong Answer", data);
 
       } else {
         setRunStatus("error");
         setExecutionResult({ success: false, error: data.error });
+        await recordSubmission("Runtime Error", null);
       }
     } catch {
       setRunStatus("error");
@@ -212,13 +205,10 @@ export default function Workspace({ problem }) {
     }
   };
 
-  // ✨ STANDARD AI ACTION
   const handleAskAI = async (useCustomPrompt = false) => {
     setAiFlowStatus('loading');
     setAiHint('');
-    
     const promptToSend = useCustomPrompt ? userPrompt : '';
-
     try {
       const response = await fetch(`${API_BASE}/api/ai-help`, {
         method: 'POST',
@@ -247,13 +237,10 @@ export default function Workspace({ problem }) {
     }
   };
 
-  // ✨ NEW: CODE QUALITY ANALYSIS ACTION
   const handleAnalyzeCode = async () => {
     setAiFlowStatus('loading');
     setAiHint('');
-    
     const analysisPrompt = "Please act as a senior developer and review my current code. Do not solve the problem for me. Instead, provide a structured 'Code Quality Report' containing: 1. The estimated Time Complexity (Big O). 2. The estimated Space Complexity (Big O). 3. Two specific suggestions to make my code cleaner, more readable, or more efficient.";
-
     try {
       const response = await fetch(`${API_BASE}/api/ai-help`, {
         method: 'POST',
@@ -291,7 +278,6 @@ export default function Workspace({ problem }) {
 
   return (
     <div className="flex flex-col h-full bg-[#1a1a1a] text-white overflow-hidden">
-      {/* Header */}
       <header className="flex items-center justify-between px-6 py-3 border-b border-gray-800 bg-[#1e1e1e]">
         <div>
           <h2 className="text-lg font-bold">{problem.title}</h2>
@@ -312,10 +298,7 @@ export default function Workspace({ problem }) {
       </header>
 
       <div ref={containerRef} className="flex flex-1 overflow-hidden">
-        {/* Description & AI Mentor Section */}
         <section style={{ width: `${descriptionWidth}%` }} className="border-r border-gray-800 overflow-y-auto p-8 custom-scrollbar relative">
-          
-          {/* ✨ DYNAMIC AI MENTOR BOX */}
           {aiFlowStatus !== 'none' && (
             <div className="p-5 bg-indigo-900/10 border border-indigo-500/30 rounded-xl mb-8 shadow-inner transition-all duration-300">
               <div className="flex justify-between items-center mb-4">
@@ -368,10 +351,8 @@ export default function Workspace({ problem }) {
             </div>
           )}
 
-          {/* Problem Description */}
           <ReactMarkdown className="prose prose-invert whitespace-pre-wrap">{formattedDescription}</ReactMarkdown>
           
-          {/* Examples */}
           {parsedExamples.map((ex, i) => (
             <div key={i} className="mt-6 bg-[#262626] p-4 rounded-xl border border-gray-800 font-mono text-sm">
               <div className="text-blue-400 text-xs mb-2 uppercase font-bold tracking-wider">Example {ex.example_num || i+1}</div>
@@ -380,10 +361,8 @@ export default function Workspace({ problem }) {
           ))}
         </section>
 
-        {/* Vertical Divider */}
         <div className="w-1 bg-gray-800 cursor-col-resize hover:bg-blue-500 transition-colors shrink-0" onMouseDown={handleInnerDividerMouseDown} />
 
-        {/* Editor & Terminal */}
         <section style={{ width: `${100 - descriptionWidth}%` }} className="flex flex-col bg-[#0d1117]">
           <div className="flex-1 relative overflow-hidden">
             <Editor
@@ -396,7 +375,6 @@ export default function Workspace({ problem }) {
             />
           </div>
 
-          {/* Terminal */}
           <div 
             className="flex flex-col bg-[#090c10] border-t border-gray-800 relative transition-all duration-200 ease-out" 
             style={{ height: isOutputCollapsed ? '42px' : `${outputHeight}px` }}
@@ -424,7 +402,6 @@ export default function Workspace({ problem }) {
                 executionResult?.error ? <pre className="text-red-400 whitespace-pre-wrap">{executionResult.error}</pre> :
                 <span className="text-gray-600 italic">Run your code to see output here.</span>
               ) : (
-                /* ✨ NEW: Auto-Evaluator Test Case Tab! */
                 <div className="space-y-4">
                   <h4 className="text-gray-400 text-xs font-bold mb-2">DATABASE TEST CASES</h4>
                   
@@ -441,12 +418,7 @@ export default function Workspace({ problem }) {
                         const outStr = executionResult.output || "";
                         const cleanOut = outStr.replace(/\s/g, '');
                         const cleanExp = expectedStr.replace(/\s/g, '');
-                        
-                        if (cleanOut.includes(cleanExp)) {
-                          isPass = true;
-                        } else {
-                          isPass = false;
-                        }
+                        isPass = cleanOut.includes(cleanExp);
                       } else if (executionResult?.error) {
                         isPass = false;
                       }
@@ -455,8 +427,6 @@ export default function Workspace({ problem }) {
                         <div key={i} className="bg-[#1e1e1e] p-4 rounded-md border border-gray-700 font-mono text-xs shadow-inner">
                           <div className="flex justify-between items-center mb-2">
                             <div className="text-blue-400 uppercase font-bold tracking-wider">Test Case {i+1}</div>
-                            
-                            {/* Pass/Fail Badge */}
                             {executionResult && !executionResult.loading && (
                               <div className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${isPass ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
                                 {isPass ? '✅ Passed' : '❌ Failed'}
@@ -466,7 +436,6 @@ export default function Workspace({ problem }) {
                           <div className="text-gray-300 whitespace-pre-wrap"><span className="text-gray-500">Input:</span> {JSON.stringify(tc.input)}</div>
                           <div className="text-gray-300 whitespace-pre-wrap mt-1"><span className="text-gray-500">Expected:</span> {expectedStr}</div>
                           
-                          {/* Show the actual output if they ran the code */}
                           {executionResult && !executionResult.loading && i === 0 && (
                             <div className={`whitespace-pre-wrap mt-3 pt-3 border-t border-gray-700 ${isPass ? 'text-green-400' : 'text-red-400'}`}>
                               <span className="text-gray-500">Actual Output:</span> {executionResult.output || "Error compiling code"}
