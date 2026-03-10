@@ -165,9 +165,6 @@ const Profile = ({ onSelectProblem }) => {
     })();
   }, []);
 
-  const handleGenerateProblem = () => {
-    alert("🤖 AI Problem Generator Initializing...\n\n(This is a prototype feature for v2! It will dynamically communicate with Gemini to generate a unique problem JSON, starter code, and test cases tailored specifically to your weak points.)");
-  };
 
   //Dynamic Roadmap Generation
   const dynamicRoadmap = useMemo(() => {
