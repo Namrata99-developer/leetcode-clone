@@ -227,7 +227,7 @@ const Profile = ({
         style={{ height: '100vh', background: 'radial-gradient(ellipse at 10% 0%, #0c1a2e 0%, #030712 55%)' }}
       >
         {/* ── Top Bar ── */}
-        <div className="shrink-0 border-b border-white/5 px-5 py-2.5 flex items-center justify-between">
+        {/* <div className="shrink-0 border-b border-white/5 px-5 py-2.5 flex items-center justify-between">
           <span className="mono text-blue-400 text-xs font-bold tracking-widest uppercase">⌘ CodeForge</span>
           <div className="flex items-center gap-3 text-xs mono text-gray-600">
             <span>{userProfile?.username || 'Coder'}</span>
@@ -236,7 +236,7 @@ const Profile = ({
               ◆ {userProfile?.rank_score || 0} pts
             </span>
           </div>
-        </div>
+        </div> */}
 
         {/* ── 3-Panel Body ── */}
         <div className="flex flex-1 overflow-hidden">
