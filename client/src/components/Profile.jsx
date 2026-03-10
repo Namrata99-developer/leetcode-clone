@@ -13,18 +13,18 @@ const ChevronRight = ({ className = '' }) => (
   </svg>
 );
 
-// ─── DSA Roadmap Data ─────────────────────────────────────────────────────────
-const DSA_ROADMAP = [
-  { id: 'arrays',        title: 'Arrays & Strings',      icon: '▦', color: '#38bdf8', topics: ['Two Pointers', 'Sliding Window', 'Prefix Sum', "Kadane's Algorithm"] },
-  { id: 'linkedlist',    title: 'Linked List',            icon: '⬡', color: '#a78bfa', topics: ['Singly & Doubly LL', 'Fast & Slow Pointers', 'Reversal', 'Merge & Cycle Detection'] },
-  { id: 'stack-queue',   title: 'Stack & Queue',          icon: '⫶', color: '#fb923c', topics: ['Monotonic Stack', 'Deque', 'LRU Cache Design', 'Next Greater Element'] },
-  { id: 'hashing',       title: 'Hashing',                icon: '#', color: '#34d399', topics: ['HashMap', 'HashSet', 'Frequency Maps', 'Anagram Problems'] },
-  { id: 'trees',         title: 'Trees',                  icon: '⌥', color: '#f472b6', topics: ['BFS / DFS', 'BST Operations', 'LCA', 'Diameter & Height'] },
-  { id: 'heap',          title: 'Heap / Priority Queue',  icon: '⬠', color: '#facc15', topics: ['Min/Max Heap', 'Top K Elements', 'Kth Largest', 'Merge K Lists'] },
-  { id: 'graphs',        title: 'Graphs',                 icon: '◎', color: '#22d3ee', topics: ['DFS / BFS', 'Topological Sort', 'Union-Find', 'Dijkstra / Bellman-Ford'] },
-  { id: 'backtracking',  title: 'Backtracking',           icon: '↺', color: '#f87171', topics: ['Subsets', 'Permutations', 'Combinations', 'N-Queens'] },
-  { id: 'binary-search', title: 'Binary Search',          icon: '⌖', color: '#818cf8', topics: ['Classic BS', 'Search on Answer', 'Rotated Array', 'Binary Search on Trees'] },
-  { id: 'dp',            title: 'Dynamic Programming',    icon: '◈', color: '#fb7185', topics: ['1D DP', '2D DP / Grid', 'Knapsack', 'LCS / LIS', 'DP on Trees'] },
+// ─── DSA Roadmap Categories mapped to DB Tags ───────────────────────
+const DSA_CATEGORIES = [
+  { id: 'arrays',        title: 'Arrays & Strings',      icon: '▦', color: '#38bdf8', matchTags: ['array', 'string', 'arrays', 'strings', 'two pointers', 'sliding window'] },
+  { id: 'linkedlist',    title: 'Linked List',            icon: '⬡', color: '#a78bfa', matchTags: ['linked list', 'linked lists', 'linkedlist'] },
+  { id: 'stack-queue',   title: 'Stack & Queue',          icon: '⫶', color: '#fb923c', matchTags: ['stack', 'queue', 'stacks', 'queues', 'monotonic stack'] },
+  { id: 'hashing',       title: 'Hashing',                icon: '#', color: '#34d399', matchTags: ['hash table', 'hashing', 'hash map', 'hashmap', 'hashset'] },
+  { id: 'trees',         title: 'Trees',                  icon: '⌥', color: '#f472b6', matchTags: ['tree', 'trees', 'binary tree', 'bst', 'depth-first search'] },
+  { id: 'heap',          title: 'Heap / Priority Queue',  icon: '⬠', color: '#facc15', matchTags: ['heap', 'priority queue'] },
+  { id: 'graphs',        title: 'Graphs',                 icon: '◎', color: '#22d3ee', matchTags: ['graph', 'graphs', 'bfs', 'dfs', 'breadth-first search'] },
+  { id: 'backtracking',  title: 'Backtracking',           icon: '↺', color: '#f87171', matchTags: ['backtracking', 'recursion'] },
+  { id: 'binary-search', title: 'Binary Search',          icon: '⌖', color: '#818cf8', matchTags: ['binary search'] },
+  { id: 'dp',            title: 'Dynamic Programming',    icon: '◈', color: '#fb7185', matchTags: ['dp', 'dynamic programming', 'memoization'] },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -40,11 +40,12 @@ const diffBadgeClass = (d) => {
   return 'bg-red-950 text-red-400';
 };
 
-// ─── RoadmapNode ──────────────────────────────────────────────────────────────
-const RoadmapNode = ({ node, index, completedTopics, onToggleTopic }) => {
+// ─── RoadmapNode ─────────────────
+const RoadmapNode = ({ node, index, solvedSlugs, onSelectProblem }) => {
   const [expanded, setExpanded] = useState(false);
-  const completedCount = node.topics.filter(t => completedTopics.has(`${node.id}::${t}`)).length;
-  const progress = (completedCount / node.topics.length) * 100;
+  
+  const completedCount = node.problems.filter(p => solvedSlugs.has(p.slug)).length;
+  const progress = node.problems.length === 0 ? 0 : (completedCount / node.problems.length) * 100;
 
   return (
     <div
@@ -65,7 +66,7 @@ const RoadmapNode = ({ node, index, completedTopics, onToggleTopic }) => {
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-1">
             <span className="font-semibold text-white text-xs truncate">{node.title}</span>
-            <span className="text-xs shrink-0 mono" style={{ color: node.color }}>{completedCount}/{node.topics.length}</span>
+            <span className="text-xs shrink-0 mono" style={{ color: node.color }}>{completedCount}/{node.problems.length}</span>
           </div>
           <div className="mt-1 h-0.5 rounded-full bg-gray-800 overflow-hidden">
             <div className="h-full rounded-full transition-all duration-500" style={{ width: `${progress}%`, background: node.color }} />
@@ -79,30 +80,39 @@ const RoadmapNode = ({ node, index, completedTopics, onToggleTopic }) => {
 
       {expanded && (
         <div className="px-3 pb-3 flex flex-col gap-1">
-          {node.topics.map(topic => {
-            const key = `${node.id}::${topic}`;
-            const done = completedTopics.has(key);
-            return (
-              <button
-                key={topic}
-                onClick={() => onToggleTopic(key)}
-                className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left hover:bg-white/5 transition-all"
-              >
-                <div
-                  className="w-3.5 h-3.5 rounded border-2 flex items-center justify-center shrink-0 transition-all"
-                  style={{ borderColor: done ? node.color : 'rgba(255,255,255,0.2)', background: done ? node.color : 'transparent' }}
+          {node.problems.length > 0 ? (
+            node.problems.map(prob => {
+              const done = solvedSlugs.has(prob.slug);
+              return (
+                <button
+                  key={prob.slug}
+                  onClick={() => onSelectProblem?.(prob)}
+                  className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left hover:bg-white/5 transition-all group"
+                  title="Click to solve problem"
                 >
-                  {done && <span className="text-black text-[9px] font-black">✓</span>}
-                </div>
-                <span
-                  className="text-xs transition-colors"
-                  style={{ color: done ? node.color : 'rgba(255,255,255,0.55)', textDecoration: done ? 'line-through' : 'none' }}
-                >
-                  {topic}
-                </span>
-              </button>
-            );
-          })}
+                  <div
+                    className="w-3.5 h-3.5 rounded border-2 flex items-center justify-center shrink-0 transition-all"
+                    style={{ borderColor: done ? node.color : 'rgba(255,255,255,0.2)', background: done ? node.color : 'transparent' }}
+                  >
+                    {done && <span className="text-black text-[9px] font-black">✓</span>}
+                  </div>
+                  <span
+                    className="text-xs transition-colors truncate flex-1"
+                    style={{ color: done ? node.color : 'rgba(255,255,255,0.8)', textDecoration: done ? 'line-through' : 'none' }}
+                  >
+                    {prob.title}
+                  </span>
+                  <span className={`text-[9px] mono px-1.5 rounded ${diffTextColor(prob.difficulty)}`}>
+                    {prob.difficulty}
+                  </span>
+                </button>
+              );
+            })
+          ) : (
+            <div className="text-gray-500 text-[10px] italic py-2 px-2 text-center">
+              No problems found for this topic yet.
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -110,50 +120,28 @@ const RoadmapNode = ({ node, index, completedTopics, onToggleTopic }) => {
 };
 
 // ─── Main Component ───────────────────────────────────────────────────────────
-// Accepts all ProblemDashboard props so App.js can pass them straight in.
-const Profile = ({
-  problems = [],
-  selectedTopic,
-  onSelectTopic,
-  searchQuery = '',
-  onSearchQueryChange,
-  onSelectProblem,
-  selectedSlug,
-}) => {
-  // Profile state
+const Profile = ({ onSelectProblem }) => {
+  // Database & Profile state
+  const [dbProblems, setDbProblems]         = useState([]); 
   const [userProfile, setUserProfile]       = useState(null);
   const [solvedProblems, setSolvedProblems] = useState([]);
   const [loading, setLoading]               = useState(true);
 
-  // Roadmap state
-  const [completedTopics, setCompletedTopics] = useState(() => {
-    try { return new Set(JSON.parse(localStorage.getItem('dsa_progress') || '[]')); }
-    catch { return new Set(); }
-  });
-
   // Layout state
-  const [topicSidebarCollapsed, setTopicSidebarCollapsed] = useState(false);
-  const [activeRightTab, setActiveRightTab]               = useState('roadmap');
-  const [rightPanelOpen, setRightPanelOpen]               = useState(true);
+  const [activeRightTab, setActiveRightTab] = useState('roadmap');
 
-  // Roadmap helpers
-  const totalTopics    = DSA_ROADMAP.reduce((a, n) => a + n.topics.length, 0);
-  const totalCompleted = completedTopics.size;
-  const overallPct     = Math.round((totalCompleted / totalTopics) * 100);
-
-  const onToggleTopic = (key) => {
-    setCompletedTopics(prev => {
-      const next = new Set(prev);
-      next.has(key) ? next.delete(key) : next.add(key);
-      try { localStorage.setItem('dsa_progress', JSON.stringify([...next])); } catch {}
-      return next;
-    });
-  };
-
-  // Fetch Supabase profile
+  // Fetch Supabase profile AND Problems
   useEffect(() => {
     (async () => {
       try {
+        const { data: problemsData } = await supabase
+          .from('problems')
+          .select('id, title, slug, difficulty, topics');
+        
+        if (problemsData) {
+          setDbProblems(problemsData);
+        }
+
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           const [profileRes, submissionsRes] = await Promise.all([
@@ -177,21 +165,28 @@ const Profile = ({
     })();
   }, []);
 
-  // Problem filtering
-  const topics = useMemo(() => {
-    const s = new Set();
-    problems.forEach(p => (p.topics || []).forEach(t => s.add(t)));
-    return Array.from(s).sort();
-  }, [problems]);
+  const handleGenerateProblem = () => {
+    alert("🤖 AI Problem Generator Initializing...\n\n(This is a prototype feature for v2! It will dynamically communicate with Gemini to generate a unique problem JSON, starter code, and test cases tailored specifically to your weak points.)");
+  };
 
-  const filteredProblems = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    return problems.filter(p => {
-      const matchTopic = !selectedTopic || (p.topics || []).includes(selectedTopic);
-      const matchQuery = !q || p.title?.toLowerCase().includes(q) || p.slug?.toLowerCase().includes(q);
-      return matchTopic && matchQuery;
+  //Dynamic Roadmap Generation
+  const dynamicRoadmap = useMemo(() => {
+    return DSA_CATEGORIES.map(cat => {
+      const categoryProblems = dbProblems.filter(p => {
+        if (!p.topics) return false;
+        const lowerTopics = p.topics.map(t => t.toLowerCase());
+        return lowerTopics.some(t => cat.matchTags.includes(t));
+      });
+      return { ...cat, problems: categoryProblems };
     });
-  }, [problems, selectedTopic, searchQuery]);
+  }, [dbProblems]);
+
+  // Roadmap Progress Calculations
+  const solvedSlugs = useMemo(() => new Set(solvedProblems.map(p => p.slug)), [solvedProblems]);
+  
+  const totalTopics = dynamicRoadmap.reduce((acc, node) => acc + node.problems.length, 0);
+  const totalCompleted = dynamicRoadmap.reduce((acc, node) => acc + node.problems.filter(p => solvedSlugs.has(p.slug)).length, 0);
+  const overallPct = totalTopics === 0 ? 0 : Math.round((totalCompleted / totalTopics) * 100);
 
   const easyCount   = solvedProblems.filter(p => p?.difficulty === 'Easy').length;
   const mediumCount = solvedProblems.filter(p => p?.difficulty === 'Medium').length;
@@ -217,9 +212,6 @@ const Profile = ({
         @keyframes fadeUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
         ::-webkit-scrollbar { width: 3px; height: 3px; }
         ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 4px; }
-        .prob-row:hover td { background: rgba(255,255,255,0.025); }
-        .panel-enter { animation: panelIn 0.2s ease both; }
-        @keyframes panelIn { from { opacity:0; transform:translateX(10px); } to { opacity:1; transform:translateX(0); } }
       `}</style>
 
       <div
@@ -238,315 +230,170 @@ const Profile = ({
           </div>
         </div> */}
 
-        {/* ── 3-Panel Body ── */}
+        {/* ── 1-Panel Body (Full Width Profile/Roadmap) ── */}
         <div className="flex flex-1 overflow-hidden">
+          <div className="flex-1 flex flex-col overflow-hidden min-w-0">
 
-          {/* ════ PANEL 1 · Topics Sidebar ════ */}
-          <aside
-            className="shrink-0 border-r border-white/5 flex flex-col transition-all duration-300 overflow-hidden"
-            style={{ width: topicSidebarCollapsed ? '40px' : '160px', background: 'rgba(5,10,20,0.6)' }}
-          >
-            <div className="px-2 py-2.5 border-b border-white/5 flex items-center shrink-0">
-              {!topicSidebarCollapsed && (
-                <span className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mono">Topics</span>
-              )}
-              <button
-                onClick={() => setTopicSidebarCollapsed(v => !v)}
-                className="p-1 hover:bg-white/5 rounded text-gray-600 hover:text-gray-300 transition-colors ml-auto"
-              >
-                {topicSidebarCollapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
-              </button>
-            </div>
-
-            {!topicSidebarCollapsed && (
-              <div className="flex-1 overflow-y-auto py-2 px-1.5">
-                <button
-                  onClick={() => onSelectTopic?.(null)}
-                  className={`w-full text-left px-2 py-1.5 rounded text-xs mb-0.5 transition-colors ${
-                    !selectedTopic
-                      ? 'bg-blue-600/20 text-blue-300 border border-blue-500/30'
-                      : 'text-gray-500 hover:bg-white/5 hover:text-gray-300'
-                  }`}
-                >
-                  All Topics
-                </button>
-                {topics.map(topic => (
-                  <button
-                    key={topic}
-                    onClick={() => onSelectTopic?.(topic)}
-                    className={`w-full text-left px-2 py-1.5 rounded text-xs mb-0.5 transition-colors truncate ${
-                      selectedTopic === topic
-                        ? 'bg-blue-600/20 text-blue-300 border border-blue-500/30'
-                        : 'text-gray-500 hover:bg-white/5 hover:text-gray-300'
-                    }`}
-                  >
-                    {topic}
-                  </button>
-                ))}
-              </div>
-            )}
-          </aside>
-
-          {/* ════ PANEL 2 · Problems List ════ */}
-          <section
-            className="shrink-0 flex flex-col border-r border-white/5 overflow-hidden"
-            style={{ width: '380px' }}
-          >
-            {/* Search */}
+            {/* Tab bar */}
             <div
-              className="shrink-0 px-3 py-2.5 border-b border-white/5 flex items-center gap-2"
+              className="shrink-0 border-b border-white/5 flex items-center px-6 gap-2"
               style={{ background: 'rgba(5,10,20,0.5)' }}
             >
-              <div className="relative flex-1">
-                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-600 text-xs pointer-events-none">⌕</span>
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={e => onSearchQueryChange?.(e.target.value)}
-                  placeholder="Search problems…"
-                  className="w-full pl-7 pr-3 py-1.5 rounded-lg text-xs bg-white/5 border border-white/8 text-gray-200 placeholder-gray-600 focus:outline-none focus:border-blue-500/50 transition-colors"
-                />
-              </div>
-              <span className="mono text-[10px] text-gray-700 whitespace-nowrap shrink-0">
-                {filteredProblems.length}/{problems.length}
-              </span>
-            </div>
-
-            {/* Problem rows */}
-            <div className="flex-1 overflow-y-auto">
-              <table className="w-full text-xs border-collapse">
-                <thead>
-                  <tr>
-                    <th
-                      className="px-3 py-2 text-left text-gray-600 font-semibold border-b border-white/5 sticky top-0"
-                      style={{ background: 'rgba(5,10,20,0.95)' }}
-                    >Problem</th>
-                    <th
-                      className="px-3 py-2 text-left text-gray-600 font-semibold border-b border-white/5 sticky top-0 w-14"
-                      style={{ background: 'rgba(5,10,20,0.95)' }}
-                    >Diff</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredProblems.map(p => (
-                    <tr
-                      key={p.slug}
-                      onClick={() => onSelectProblem?.(p)}
-                      className={`prob-row cursor-pointer transition-colors ${
-                        selectedSlug === p.slug ? 'bg-blue-600/10' : ''
-                      }`}
-                      style={selectedSlug === p.slug ? { borderLeft: '2px solid #3b82f6' } : {}}
-                    >
-                      <td className="px-3 py-2.5 border-b border-white/4">
-                        <div className="font-medium text-gray-200 leading-snug">{p.title}</div>
-                        <div className="text-gray-700 mono mt-0.5 text-[10px]">{p.slug}</div>
-                        {(p.topics || []).length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {p.topics.slice(0, 3).map(t => (
-                              <span key={t} className="px-1.5 py-0.5 rounded bg-white/5 text-gray-600 text-[9px] uppercase tracking-wide">{t}</span>
-                            ))}
-                          </div>
-                        )}
-                      </td>
-                      <td className={`px-3 py-2.5 border-b border-white/4 font-semibold ${diffTextColor(p.difficulty)}`}>
-                        {p.difficulty}
-                      </td>
-                    </tr>
-                  ))}
-                  {filteredProblems.length === 0 && (
-                    <tr>
-                      <td colSpan={2} className="px-4 py-10 text-center text-gray-700 italic">No problems found</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </section>
-
-          {/* ════ PANEL 3 · Profile + Roadmap ════ */}
-          {rightPanelOpen ? (
-            <div className="flex-1 flex flex-col overflow-hidden panel-enter min-w-0">
-
-              {/* Tab bar */}
-              <div
-                className="shrink-0 border-b border-white/5 flex items-center px-3 gap-0.5"
-                style={{ background: 'rgba(5,10,20,0.5)' }}
-              >
-                {[
-                  { id: 'roadmap', label: '🗺 Roadmap' },
-                  { id: 'profile', label: '👤 Profile' },
-                ].map(tab => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveRightTab(tab.id)}
-                    className={`px-4 py-2.5 text-xs font-semibold border-b-2 -mb-px transition-all ${
-                      activeRightTab === tab.id
-                        ? 'border-blue-500 text-blue-400'
-                        : 'border-transparent text-gray-600 hover:text-gray-300'
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
+              {[
+                { id: 'roadmap', label: '🗺 Roadmap' },
+                { id: 'profile', label: '👤 Profile' },
+              ].map(tab => (
                 <button
-                  onClick={() => setRightPanelOpen(false)}
-                  className="ml-auto p-1 hover:bg-white/5 rounded text-gray-700 hover:text-gray-400 transition-colors"
-                  title="Collapse"
+                  key={tab.id}
+                  onClick={() => setActiveRightTab(tab.id)}
+                  className={`px-4 py-3 text-sm font-semibold border-b-2 -mb-px transition-all ${
+                    activeRightTab === tab.id
+                      ? 'border-blue-500 text-blue-400'
+                      : 'border-transparent text-gray-600 hover:text-gray-300'
+                  }`}
                 >
-                  <ChevronRight className="w-3.5 h-3.5" />
+                  {tab.label}
+                </button>
+              ))}
+
+              {/* ✨ AI GENERATE BUTTON MOVED HERE */}
+              <div className="ml-auto py-2">
+                <button
+                  onClick={handleGenerateProblem}
+                  className="bg-indigo-600/90 hover:bg-indigo-500 text-white rounded-lg px-5 py-1.5 text-xs font-bold shadow-[0_0_15px_rgba(79,70,229,0.2)] transition-all flex items-center justify-center gap-2 border border-indigo-400/30"
+                >
+                  <span className="text-sm">✨</span> Generate Custom AI Problem
                 </button>
               </div>
+            </div>
 
-              {/* ── Tab: PROFILE ── */}
-              {activeRightTab === 'profile' && (
-                <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-5">
-                  {/* Avatar + info */}
-                  <div className="flex items-center gap-4">
-                    <div
-                      className="w-14 h-14 rounded-xl flex items-center justify-center text-2xl font-black shrink-0"
-                      style={{ background: 'linear-gradient(135deg,#3b82f6,#7c3aed)', boxShadow: '0 0 20px rgba(59,130,246,0.2)' }}
-                    >
-                      {(userProfile?.username || 'C')[0].toUpperCase()}
-                    </div>
-                    <div>
-                      <h2 className="text-lg font-extrabold tracking-tight">{userProfile?.username || 'Coder'}</h2>
-                      <p className="text-gray-600 mono text-[10px] mt-0.5">{userProfile?.email || 'no email'}</p>
-                      <div className="mt-1.5 inline-block mono text-[10px] px-2.5 py-0.5 rounded-full border border-blue-500/30 bg-blue-500/10 text-blue-400">
-                        ◆ Rank {userProfile?.rank_score || 0}
-                      </div>
-                    </div>
+            {/* ── Tab: PROFILE ── */}
+            {activeRightTab === 'profile' && (
+              <div className="flex-1 overflow-y-auto p-10 flex flex-col gap-8 max-w-5xl mx-auto w-full">
+                {/* Avatar + info */}
+                <div className="flex items-center gap-6">
+                  <div
+                    className="w-20 h-20 rounded-2xl flex items-center justify-center text-4xl font-black shrink-0"
+                    style={{ background: 'linear-gradient(135deg,#3b82f6,#7c3aed)', boxShadow: '0 0 30px rgba(59,130,246,0.3)' }}
+                  >
+                    {(userProfile?.username || 'C')[0].toUpperCase()}
                   </div>
-
-                  {/* Solve stats */}
                   <div>
-                    <p className="mono text-[10px] uppercase tracking-widest text-gray-700 mb-2">Problems Solved</p>
-                    <div className="flex items-end gap-2 mb-3">
-                      <span className="text-4xl font-extrabold">{solvedProblems.length}</span>
-                      <span className="text-gray-600 text-sm mb-1">total</span>
+                    <h2 className="text-3xl font-extrabold tracking-tight">{userProfile?.username || 'Coder'}</h2>
+                    <p className="text-gray-500 mono text-sm mt-1">{userProfile?.email || 'no email'}</p>
+                    <div className="mt-3 inline-block mono text-xs px-3 py-1 rounded-full border border-blue-500/30 bg-blue-500/10 text-blue-400">
+                      ◆ Rank Score: {userProfile?.rank_score || 0}
                     </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      {[
-                        { label: 'Easy',   count: easyCount,   color: '#4ade80', bg: 'rgba(74,222,128,0.06)' },
-                        { label: 'Medium', count: mediumCount, color: '#facc15', bg: 'rgba(250,204,21,0.06)' },
-                        { label: 'Hard',   count: hardCount,   color: '#f87171', bg: 'rgba(248,113,113,0.06)' },
-                      ].map(({ label, count, color, bg }) => (
-                        <div key={label} className="rounded-xl p-2.5 text-center" style={{ background: bg, border: `1px solid ${color}20` }}>
-                          <div className="text-xl font-bold mono" style={{ color }}>{count}</div>
-                          <div className="text-[10px] mt-0.5" style={{ color: `${color}99` }}>{label}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="border-t border-white/5" />
-
-                  {/* Solved list */}
-                  <div>
-                    <p className="mono text-[10px] uppercase tracking-widest text-gray-700 mb-2">Recently Solved</p>
-                    <ul className="flex flex-col gap-0.5">
-                      {solvedProblems.length > 0 ? solvedProblems.slice(0, 15).map((prob, idx) => (
-                        <li key={idx} className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-white/4 cursor-default transition-colors">
-                          <span className="text-xs text-gray-300 truncate pr-2">{prob?.title}</span>
-                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold shrink-0 mono ${diffBadgeClass(prob?.difficulty)}`}>
-                            {prob?.difficulty}
-                          </span>
-                        </li>
-                      )) : (
-                        <li className="text-center text-gray-700 italic text-xs py-6">No problems solved yet 🚀</li>
-                      )}
-                    </ul>
                   </div>
                 </div>
-              )}
 
-              {/* ── Tab: ROADMAP ── */}
-              {activeRightTab === 'roadmap' && (
-                <div className="flex-1 overflow-y-auto">
-                  {/* Sticky header */}
-                  <div
-                    className="sticky top-0 z-10 px-5 py-3 border-b border-white/5 flex items-center justify-between"
-                    style={{ background: 'rgba(3,7,18,0.92)', backdropFilter: 'blur(8px)' }}
-                  >
-                    <div>
-                      <h3 className="font-extrabold text-sm">DSA Roadmap</h3>
-                      <p className="text-[10px] text-gray-600 mt-0.5">Arrays → DP · track your mastery</p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="text-right">
-                        <div className="mono text-xl font-bold text-blue-400">{overallPct}%</div>
-                        <div className="text-[10px] text-gray-700 mono">{totalCompleted}/{totalTopics} topics</div>
-                      </div>
-                      <div className="relative w-11 h-11">
-                        <svg viewBox="0 0 36 36" className="w-11 h-11 -rotate-90">
-                          <circle cx="18" cy="18" r="14" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="3.5"/>
-                          <circle
-                            cx="18" cy="18" r="14" fill="none"
-                            stroke="#38bdf8" strokeWidth="3.5"
-                            strokeDasharray={`${overallPct * 0.88} 100`}
-                            strokeLinecap="round"
-                            style={{ filter: 'drop-shadow(0 0 3px #38bdf8)' }}
-                          />
-                        </svg>
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <span className="mono text-[9px] font-bold text-blue-400">{overallPct}%</span>
-                        </div>
-                      </div>
-                    </div>
+                {/* Solve stats */}
+                <div className="mt-4">
+                  <p className="mono text-xs uppercase tracking-widest text-gray-600 mb-4">Problems Solved</p>
+                  <div className="flex items-end gap-3 mb-6">
+                    <span className="text-6xl font-extrabold text-white">{solvedProblems.length}</span>
+                    <span className="text-gray-500 text-lg mb-2">total solved</span>
                   </div>
-
-                  {/* Grid of nodes */}
-                  <div className="p-4 grid grid-cols-1 xl:grid-cols-2 gap-3">
-                    {DSA_ROADMAP.map((node, index) => (
-                      <div key={node.id} className="relative">
-                        <div
-                          className="absolute -top-1.5 -left-1.5 z-10 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black mono"
-                          style={{ background: node.color, color: '#000' }}
-                        >
-                          {index + 1}
-                        </div>
-                        <RoadmapNode
-                          node={node}
-                          index={index}
-                          completedTopics={completedTopics}
-                          onToggleTopic={onToggleTopic}
-                        />
+                  <div className="grid grid-cols-3 gap-4">
+                    {[
+                      { label: 'Easy',   count: easyCount,   color: '#4ade80', bg: 'rgba(74,222,128,0.06)' },
+                      { label: 'Medium', count: mediumCount, color: '#facc15', bg: 'rgba(250,204,21,0.06)' },
+                      { label: 'Hard',   count: hardCount,   color: '#f87171', bg: 'rgba(248,113,113,0.06)' },
+                    ].map(({ label, count, color, bg }) => (
+                      <div key={label} className="rounded-2xl p-6 text-center" style={{ background: bg, border: `1px solid ${color}20` }}>
+                        <div className="text-4xl font-bold mono" style={{ color }}>{count}</div>
+                        <div className="text-xs mt-2 font-semibold uppercase tracking-wider" style={{ color: `${color}99` }}>{label}</div>
                       </div>
                     ))}
                   </div>
-
-                  {overallPct === 100 && (
-                    <div className="mx-4 mb-5 rounded-2xl p-5 text-center border border-yellow-500/25 bg-yellow-500/5">
-                      <div className="text-3xl mb-1">🏆</div>
-                      <h3 className="font-extrabold text-yellow-400 text-sm">DSA Mastered!</h3>
-                      <p className="text-gray-600 text-xs mt-1">You completed the entire roadmap. Legendary.</p>
-                    </div>
-                  )}
                 </div>
-              )}
-            </div>
 
-          ) : (
-            /* Collapsed right panel — restore strip */
-            <div
-              className="flex flex-col items-center pt-3 px-1.5 border-l border-white/5"
-              style={{ background: 'rgba(5,10,20,0.4)' }}
-            >
-              <button
-                onClick={() => setRightPanelOpen(true)}
-                className="p-1.5 hover:bg-white/5 rounded text-gray-600 hover:text-gray-300 transition-colors"
-                title="Expand"
-              >
-                <ChevronLeft className="w-3.5 h-3.5" />
-              </button>
-              <span
-                className="mt-3 mono text-[9px] text-gray-700 uppercase tracking-widest"
-                style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
-              >
-                Profile · Roadmap
-              </span>
-            </div>
-          )}
+                <div className="border-t border-white/5 my-2" />
 
+                {/* Solved list */}
+                <div>
+                  <p className="mono text-xs uppercase tracking-widest text-gray-600 mb-4">Recently Solved</p>
+                  <ul className="flex flex-col gap-2">
+                    {solvedProblems.length > 0 ? solvedProblems.slice(0, 15).map((prob, idx) => (
+                      <li key={idx} className="flex items-center justify-between px-4 py-3 rounded-xl bg-white/5 border border-white/5 cursor-default transition-colors">
+                        <span className="text-sm font-medium text-gray-200">{prob?.title}</span>
+                        <span className={`text-xs px-3 py-1 rounded-full font-bold shrink-0 mono ${diffBadgeClass(prob?.difficulty)}`}>
+                          {prob?.difficulty}
+                        </span>
+                      </li>
+                    )) : (
+                      <li className="text-center text-gray-600 italic text-sm py-10 bg-white/5 rounded-xl border border-white/5">No problems solved yet. Time to get coding! 🚀</li>
+                    )}
+                  </ul>
+                </div>
+              </div>
+            )}
+
+            {/* ── Tab: ROADMAP ── */}
+            {activeRightTab === 'roadmap' && (
+              <div className="flex-1 overflow-y-auto">
+                {/* Sticky header */}
+                <div
+                  className="sticky top-0 z-10 px-8 py-6 border-b border-white/5 flex items-center justify-between"
+                  style={{ background: 'rgba(3,7,18,0.92)', backdropFilter: 'blur(8px)' }}
+                >
+                  <div>
+                    <h3 className="font-extrabold text-2xl">DSA Mastery Roadmap</h3>
+                    <p className="text-xs text-gray-500 mt-2">Track your progress from Data Structures to advanced Dynamic Programming.</p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <div className="mono text-3xl font-bold text-blue-400">{overallPct}%</div>
+                      <div className="text-xs text-gray-600 mono mt-1">{totalCompleted} / {totalTopics} problems</div>
+                    </div>
+                    <div className="relative w-16 h-16">
+                      <svg viewBox="0 0 36 36" className="w-16 h-16 -rotate-90">
+                        <circle cx="18" cy="18" r="14" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="3.5"/>
+                        <circle
+                          cx="18" cy="18" r="14" fill="none"
+                          stroke="#38bdf8" strokeWidth="3.5"
+                          strokeDasharray={`${overallPct * 0.88} 100`}
+                          strokeLinecap="round"
+                          style={{ filter: 'drop-shadow(0 0 4px #38bdf8)' }}
+                        />
+                      </svg>
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="mono text-xs font-bold text-blue-400">{overallPct}%</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Grid of nodes */}
+                <div className="p-8 grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-6xl mx-auto">
+                  {dynamicRoadmap.map((node, index) => (
+                    <div key={node.id} className="relative">
+                      <div
+                        className="absolute -top-2 -left-2 z-10 w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black mono shadow-lg"
+                        style={{ background: node.color, color: '#000' }}
+                      >
+                        {index + 1}
+                      </div>
+                      <RoadmapNode
+                        node={node}
+                        index={index}
+                        solvedSlugs={solvedSlugs}
+                        onSelectProblem={onSelectProblem}
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                {overallPct === 100 && totalTopics > 0 && (
+                  <div className="max-w-4xl mx-auto mb-10 rounded-2xl p-8 text-center border border-yellow-500/25 bg-yellow-500/5">
+                    <div className="text-5xl mb-3">🏆</div>
+                    <h3 className="font-extrabold text-yellow-400 text-xl">DSA Mastered!</h3>
+                    <p className="text-gray-400 text-sm mt-2">You completed the entire roadmap. You are ready for any technical interview.</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </>
